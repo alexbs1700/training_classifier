@@ -1,7 +1,7 @@
 [project]
-name = "ml-this-time-fr"
+name = "training-classifier"
 version = "0.1.0"
-description = "Add your description here"
+description = "Pull Garmin Connect training history, tidy it into DataFrames, visualise it, and (eventually) classify activities from sensor data."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -11,9 +11,21 @@ dependencies = [
     "matplotlib>=3.11.1",
     "numpy>=2.5.2",
     "pandas>=3.0.5",
+    "ruff>=0.16.5",
 ]
 
 [dependency-groups]
 dev = [
     "ipykernel>=7.3.0",
 ]
+
+[tool.ruff.format]
+docstring-code-format = true
+docstring-code-line-length = 20
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+extend-select = ["I", "UP", "B", "SIM", "NPY", "PD"]

@@ -26,7 +26,6 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-
 from garminconnect import (
     Garmin,
     GarminConnectAuthenticationError,
@@ -41,6 +40,7 @@ logging.getLogger("garminconnect").setLevel(logging.CRITICAL)
 # --------------------------------------------------------------------------- #
 # Auth / connection helpers                                                    #
 # --------------------------------------------------------------------------- #
+
 
 def _status_code_from_error(exc: Exception) -> int | None:
     """Best-effort HTTP status extraction from a library exception."""
@@ -139,17 +139,17 @@ def init_garmin_api() -> Garmin:
 # Maps Garmin's internal metric keys to the names plot_activity() expects.
 # Channels not listed here are kept under their original Garmin key.
 CANONICAL = {
-    "directLatitude":    "latitude",
-    "directLongitude":   "longitude",
-    "directSpeed":       "speed",      # m/s
-    "directHeartRate":   "heart_rate", # bpm
-    "directPower":       "power",      # watts
-    "directBikeCadence": "cadence",    # rpm
-    "directRunCadence":  "cadence",    # steps/min
-    "directElevation":   "altitude",   # metres
-    "sumDistance":       "distance",   # metres
-    "sumDuration":       "elapsed",    # seconds
-    "directTimestamp":   "timestamp",
+    "directLatitude": "latitude",
+    "directLongitude": "longitude",
+    "directSpeed": "speed",  # m/s
+    "directHeartRate": "heart_rate",  # bpm
+    "directPower": "power",  # watts
+    "directBikeCadence": "cadence",  # rpm
+    "directRunCadence": "cadence",  # steps/min
+    "directElevation": "altitude",  # metres
+    "sumDistance": "distance",  # metres
+    "sumDuration": "elapsed",  # seconds
+    "directTimestamp": "timestamp",
 }
 
 
@@ -173,10 +173,12 @@ def details_to_df(det: dict, rename: bool = True) -> pd.DataFrame:
 
 def available_metrics(det: dict) -> pd.DataFrame:
     """Return a DataFrame of every channel in this activity, with its unit."""
-    return pd.DataFrame([
-        {"key": m["key"], "unit": (m.get("unit") or {}).get("key")}
-        for m in det["metricDescriptors"]
-    ]).sort_values("key", ignore_index=True)
+    return pd.DataFrame(
+        [
+            {"key": m["key"], "unit": (m.get("unit") or {}).get("key")}
+            for m in det["metricDescriptors"]
+        ]
+    ).sort_values("key", ignore_index=True)
 
 
 def clean(df: pd.DataFrame) -> pd.DataFrame:
@@ -195,6 +197,7 @@ def clean(df: pd.DataFrame) -> pd.DataFrame:
 # --------------------------------------------------------------------------- #
 # Quick smoke-test / demo                                                      #
 # --------------------------------------------------------------------------- #
+
 
 def main():
     try:

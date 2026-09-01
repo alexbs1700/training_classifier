@@ -24,11 +24,12 @@ MUTED = "#9a9a9a"
 # Activity calendar                                                           #
 # --------------------------------------------------------------------------- #
 
+
 def _grid_for_year(year, active_days):
     """Return a 7 x n_weeks array: 1 = active, 0 = idle, nan = outside the year."""
     jan1 = date(year, 1, 1)
     dec31 = date(year, 12, 31)
-    offset = jan1.weekday()                      # Monday = 0
+    offset = jan1.weekday()  # Monday = 0
     n_days = (dec31 - jan1).days + 1
     n_weeks = (n_days + offset + 6) // 7
 
@@ -63,7 +64,8 @@ def plot_activity_calendar(dates, years=None, figsize_per_year=1.55, cell_gap=1.
     cmap = ListedColormap(["#ffffff", "#111111"])
 
     fig, axes = plt.subplots(
-        len(years), 1,
+        len(years),
+        1,
         figsize=(13, figsize_per_year * len(years)),
         constrained_layout=True,
     )
@@ -74,8 +76,12 @@ def plot_activity_calendar(dates, years=None, figsize_per_year=1.55, cell_gap=1.
         masked = np.ma.masked_invalid(grid)
 
         ax.pcolormesh(
-            masked, cmap=cmap, vmin=0, vmax=1,
-            edgecolors="#d8d8d8", linewidth=cell_gap,
+            masked,
+            cmap=cmap,
+            vmin=0,
+            vmax=1,
+            edgecolors="#d8d8d8",
+            linewidth=cell_gap,
         )
         ax.set_aspect("equal")
         ax.invert_yaxis()
@@ -94,7 +100,10 @@ def plot_activity_calendar(dates, years=None, figsize_per_year=1.55, cell_gap=1.
         n_days = int(np.sum(~np.isnan(grid)))
         ax.set_title(
             f"{year}    {n_active} / {n_days} days  ({n_active / n_days:.0%})",
-            loc="left", fontsize=11, fontweight="bold", pad=6,
+            loc="left",
+            fontsize=11,
+            fontweight="bold",
+            pad=6,
         )
 
     axes[-1].legend(
@@ -102,8 +111,11 @@ def plot_activity_calendar(dates, years=None, figsize_per_year=1.55, cell_gap=1.
             Patch(facecolor="#111111", edgecolor="#d8d8d8", label="activity logged"),
             Patch(facecolor="#ffffff", edgecolor="#d8d8d8", label="nothing logged"),
         ],
-        loc="upper left", bbox_to_anchor=(0, -0.35),
-        frameon=False, ncols=2, fontsize=9,
+        loc="upper left",
+        bbox_to_anchor=(0, -0.35),
+        frameon=False,
+        ncols=2,
+        fontsize=9,
     )
     return fig
 
@@ -111,6 +123,7 @@ def plot_activity_calendar(dates, years=None, figsize_per_year=1.55, cell_gap=1.
 # --------------------------------------------------------------------------- #
 # Single-activity dashboard                                                   #
 # --------------------------------------------------------------------------- #
+
 
 def _mmss(minutes, _=None):
     """Format decimal minutes as m:ss for pace axes."""
@@ -149,8 +162,15 @@ def _style(ax, label):
         ax.spines[side].set_visible(False)
 
 
-def plot_activity(df, title="", speed_col="speed", hr_col="heart_rate",
-                  alt_col="altitude", lat_col="latitude", lon_col="longitude"):
+def plot_activity(
+    df,
+    title="",
+    speed_col="speed",
+    hr_col="heart_rate",
+    alt_col="altitude",
+    lat_col="latitude",
+    lon_col="longitude",
+):
     """
     df needs a `distance` column in metres plus whichever of the optional
     channels exist. Missing channels are skipped, not faked.
@@ -182,7 +202,9 @@ def plot_activity(df, title="", speed_col="speed", hr_col="heart_rate",
         finite = pace[np.isfinite(pace)]
         lo, hi = np.percentile(finite, [5, 95]) if finite.size else (0.0, 1.0)
         lc = LineCollection(
-            list(segs), cmap="viridis_r", linewidth=2.4,
+            list(segs),
+            cmap="viridis_r",
+            linewidth=2.4,
             norm=Normalize(lo, hi),
         )
         lc.set_array(pace[:-1])
@@ -208,12 +230,11 @@ def plot_activity(df, title="", speed_col="speed", hr_col="heart_rate",
         ax = fig.add_subplot(gs[i, 1:], sharex=axes[0] if axes else None)
         axes.append(ax)
         if kind == "fill":
-            ax.fill_between(dist_km, series, np.nanmin(series),
-                            color=MUTED, alpha=0.45, lw=0)
+            ax.fill_between(dist_km, series, np.nanmin(series), color=MUTED, alpha=0.45, lw=0)
         else:
             ax.plot(dist_km, series, color=ACCENT, lw=1.3)
         if kind == "pace":
-            ax.invert_yaxis()          # faster is up, as every runner expects
+            ax.invert_yaxis()  # faster is up, as every runner expects
             ax.yaxis.set_major_formatter(FuncFormatter(_mmss))
             # one stop would otherwise stretch the axis to 30:00 and flatten
             # everything else into a straight line
@@ -237,7 +258,7 @@ if __name__ == "__main__":
         day = date(year, 1, 1)
         while day.year == year:
             if year == 2026 and day > date(2026, 6, 10):
-                p = 0.12                      # post-quit: occasional ride
+                p = 0.12  # post-quit: occasional ride
             elif day.weekday() >= 5:
                 p = 0.85
             else:
@@ -247,8 +268,12 @@ if __name__ == "__main__":
             day += timedelta(days=1)
 
     fig = plot_activity_calendar(fake, years=range(2022, 2027))
-    fig.savefig("/home/claude/calendar_demo.png", dpi=160, bbox_inches="tight",
-                facecolor="white")
+    fig.savefig(
+        "/home/claude/calendar_demo.png",
+        dpi=160,
+        bbox_inches="tight",
+        facecolor="white",
+    )
 
     # synthetic single ride
     import pandas as pd
@@ -257,22 +282,28 @@ if __name__ == "__main__":
     n = 3600
     t = np.arange(n)
     speed = 4.2 + 0.9 * np.sin(t / 420) + rng.normal(0, 0.28, n)
-    speed[1500:1560] = 0.05                                  # a stop at a light
+    speed[1500:1560] = 0.05  # a stop at a light
     speed = np.clip(speed, 0, None)
     dist = np.cumsum(speed)
     theta = t / n * 2 * np.pi
     lat = 43.545 + 0.02 * np.sin(theta) + 0.004 * np.sin(5 * theta)
     lon = -5.662 + 0.03 * np.cos(theta) + 0.005 * np.cos(3 * theta)
-    ride = pd.DataFrame({
-        "distance": dist,
-        "speed": speed,
-        "heart_rate": np.clip(138 + 16 * np.sin(t / 500) + rng.normal(0, 3, n), 90, 195),
-        "altitude": 180 + 60 * np.sin(t / 900) + rng.normal(0, 1.2, n),
-        "latitude": lat,
-        "longitude": lon,
-    })
+    ride = pd.DataFrame(
+        {
+            "distance": dist,
+            "speed": speed,
+            "heart_rate": np.clip(138 + 16 * np.sin(t / 500) + rng.normal(0, 3, n), 90, 195),
+            "altitude": 180 + 60 * np.sin(t / 900) + rng.normal(0, 1.2, n),
+            "latitude": lat,
+            "longitude": lon,
+        }
+    )
 
     fig = plot_activity(ride, title="Morning ride  ·  Gijón")
-    fig.savefig("/home/claude/activity_demo.png", dpi=160,
-                bbox_inches="tight", facecolor="white")
+    fig.savefig(
+        "/home/claude/activity_demo.png",
+        dpi=160,
+        bbox_inches="tight",
+        facecolor="white",
+    )
     print("saved")
