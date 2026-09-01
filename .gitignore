@@ -33,3 +33,22 @@ Thumbs.db
 # Secrets / env
 .env
 *.env
+
+# Database files
+*.db
+*.duckdb
+*.db.wal
+*.wal
+*.db-shm
+*.db-journal
+.duckdb_history
+
+# Local data (fetched from Garmin / derived) — keep querys/ tracked, not its outputs
+/data/
+*.parquet
+/activities.csv
+
+# Tooling caches
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/

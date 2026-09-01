@@ -11,6 +11,10 @@ data-plumbing and plotting groundwork.
 | --- | --- |
 | `utils/garmin_aux.py` | Authenticate against Garmin Connect and turn `get_activity_details` output into tidy, canonically-named DataFrames. |
 | `utils/plotting_aux.py` | Two matplotlib views: a GitHub-style activity calendar and a single-activity dashboard (route coloured by pace + stacked pace / heart-rate / elevation panels). |
+| `utils/data_manipulation_aux.py` | DataFrame helpers, e.g. `normalize_ordered` (flatten nested JSON records while keeping original key order). |
+| `utils/db.py` | Run the `.sql` files in `querys/` against the DuckDB store or straight at data files. |
+| `querys/*.sql` | Saved queries, one per file. Tracked in git; their outputs are not. |
+| `data/` | Local DuckDB store (`activities.db`) and derived caches. Git-ignored. |
 | `experiments.ipynb` | Scratch notebook: fetch all activities, plot the calendar, drill into one activity. |
 | `main.py` | Placeholder entry point. |
 
@@ -75,6 +79,43 @@ Run the notebook with:
 uv run jupyter lab experiments.ipynb
 ```
 
+### Querying
+
+Activity data lives in a DuckDB database at `data/activities.db`. Keep queries as
+`.sql` files under `querys/` and run them by name:
+
+```python
+from utils.db import run_query
+
+run_query("test")                       # runs querys/test.sql
+run_query("activity", activity_id=123)  # binds $activity_id in the SQL
+```
+
+The store is attached as the catalog `data`, so a query can reference
+`data.activities` (or just `activities`). Relative file paths resolve from the
+repo root, so queries can also read data files directly:
+
+```sql
+-- querys/weekly_volume.sql
+SELECT date_trunc('week', start_time_local) AS week,
+       count(*)                             AS activities,
+       sum(distance) / 1000                AS km
+FROM data.activities
+GROUP BY 1
+ORDER BY 1;
+```
+
+```sql
+-- straight at files on disk — Parquet / CSV / JSON, globs included
+SELECT * FROM read_parquet('data/samples/**/*.parquet');
+```
+
+Or from the DuckDB CLI:
+
+```bash
+duckdb data/activities.db ".read querys/test.sql"
+```
+
 ## API reference
 
 **`utils.garmin_aux`**
@@ -91,3 +132,8 @@ uv run jupyter lab experiments.ipynb
 - `plot_activity(df, title="", ...) -> Figure` — needs a `distance` column in metres; heart-rate, elevation and lat/lon panels are drawn only if present.
 
 Both modules run standalone (`python -m utils.plotting_aux`) to render demo figures from synthetic data.
+
+**`utils.db`**
+
+- `run_query(name, *, db=..., read_only=False, **params) -> DataFrame` — execute `querys/<name>.sql`, returning the last statement's result; keyword args bind to `$name` query parameters.
+- `connect(db=..., *, read_only=False) -> DuckDBPyConnection` — in-memory connection with the store attached as the `data` catalog and file paths rooted at the repo.
