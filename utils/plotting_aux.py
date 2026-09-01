@@ -71,7 +71,7 @@ def plot_activity_calendar(dates, years=None, figsize_per_year=1.55, cell_gap=1.
     )
     axes = np.atleast_1d(axes)
 
-    for ax, year in zip(axes, years):
+    for ax, year in zip(axes, years, strict=False):
         grid = _grid_for_year(year, active)
         masked = np.ma.masked_invalid(grid)
 
