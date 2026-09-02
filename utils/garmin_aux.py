@@ -20,6 +20,8 @@ import contextlib
 import logging
 import os
 import sys
+import time
+from collections.abc import Iterable
 from datetime import date
 from getpass import getpass
 from pathlib import Path
@@ -35,6 +37,7 @@ from garminconnect import (
 )
 
 logging.getLogger("garminconnect").setLevel(logging.CRITICAL)
+log = logging.getLogger(__name__)
 
 
 # --------------------------------------------------------------------------- #
@@ -192,6 +195,50 @@ def clean(df: pd.DataFrame) -> pd.DataFrame:
     if "distance" in df:
         df = df[df["distance"].notna()].reset_index(drop=True)
     return df
+
+
+DETAILS_DIR = Path("data/details_raw")
+
+
+def sync_details(
+    api: Garmin,
+    activity_ids: Iterable[int],
+    dest: Path | str = DETAILS_DIR,
+    *,
+    overwrite: bool = False,
+    pause: float = 1.0,
+) -> list[int]:
+    """Cache each activity's per-sample detail stream as one Parquet file.
+
+    Writes ``<dest>/<activity_id>.parquet`` (``details_to_df`` output plus an
+    ``activity_id`` column, all channels kept).  Ids already on disk are skipped
+    unless ``overwrite``; ``pause`` seconds are slept between API calls to stay
+    under Garmin's rate limit.  Returns the ids actually fetched.
+    """
+    dest = Path(dest)
+    dest.mkdir(parents=True, exist_ok=True)
+
+    fetched: list[int] = []
+    for activity_id in activity_ids:
+        path = dest / f"{activity_id}.parquet"
+        if path.exists() and not overwrite:
+            continue
+
+        ok, det, err = safe_api_call(api.get_activity_details, activity_id)
+        if not ok or not det:
+            log.warning("skipping %s: %s", activity_id, err or "no data")
+            continue
+
+        df = details_to_df(det)
+        df.insert(0, "activity_id", activity_id)
+        df.to_parquet(path, compression="zstd")
+        fetched.append(activity_id)
+        log.info("cached %s (%d samples)", activity_id, len(df))
+
+        if pause:
+            time.sleep(pause)
+
+    return fetched
 
 
 # --------------------------------------------------------------------------- #
