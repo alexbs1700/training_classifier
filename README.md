@@ -141,7 +141,7 @@ skipping activities already fetched:
 from utils.garmin_aux import sync_details
 
 ids = [a["activityId"] for a in activities]
-sync_details(api, ids)            # data/details_raw/<id>.parquet, ~1s/activity
+sync_details(api, ids)            # data/details_raw/<id>.parquet, tqdm progress bar
 ```
 
 Query them with DuckDB — no table or view to maintain. `sql()` runs an ad-hoc
@@ -182,10 +182,10 @@ sql("SELECT * FROM read_parquet(?)", [files], attach=False)
 **`utils.garmin_aux`**
 
 - `init_garmin_api() -> Garmin` — authenticated client (cached tokens or prompt).
-- `details_to_df(det, rename=True) -> DataFrame` — one row per sensor sample; columns renamed via the `CANONICAL` map.
+- `details_to_df(det, rename=True) -> DataFrame` — one row per sensor sample; columns renamed via the `CANONICAL` map. Raises `ValueError` if the activity has no recorded stream.
 - `available_metrics(det) -> DataFrame` — every channel in an activity, with units. Use it when an expected column is missing.
 - `clean(df) -> DataFrame` — drop Garmin `999.0` GPS sentinels, interpolate short dropouts, drop rows with no distance.
-- `sync_details(api, activity_ids, dest="data/details_raw", *, overwrite=False, pause=1.0) -> list[int]` — cache each activity's detail stream as `<dest>/<id>.parquet`; skips files already present.
+- `sync_details(api, activity_ids, dest="data/details_raw", *, overwrite=False, pause=0.2, progress=True) -> list[int]` — cache each activity's detail stream as `<dest>/<id>.parquet` (tqdm bar); skips files already present. Raise `pause` if a bulk backfill trips Garmin's `429`.
 - `safe_api_call(method, *args) -> (success, result, error_message)` — wraps library exceptions into a tuple.
 
 **`utils.plotting_aux`**

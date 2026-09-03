@@ -35,6 +35,7 @@ from garminconnect import (
     GarminConnectNotFoundError,
     GarminConnectTooManyRequestsError,
 )
+from tqdm.auto import tqdm
 
 logging.getLogger("garminconnect").setLevel(logging.CRITICAL)
 log = logging.getLogger(__name__)
@@ -162,7 +163,13 @@ def details_to_df(det: dict, rename: bool = True) -> pd.DataFrame:
     Each row is one GPS/sensor sample.  Column names are mapped through
     ``CANONICAL``; call ``available_metrics(det)`` if an expected channel is
     missing.
+
+    Raises ``ValueError`` if the payload carries no stream (manual entries and
+    some activity types come back with ``metricDescriptors: null``).
     """
+    if not det.get("metricDescriptors") or not det.get("activityDetailMetrics"):
+        raise ValueError("get_activity_details payload has no sample stream")
+
     index_of = {m["key"]: m["metricsIndex"] for m in det["metricDescriptors"]}
     rows = [r["metrics"] for r in det["activityDetailMetrics"]]
     df = pd.DataFrame(rows).rename(columns={idx: key for key, idx in index_of.items()})
@@ -206,20 +213,29 @@ def sync_details(
     dest: Path | str = DETAILS_DIR,
     *,
     overwrite: bool = False,
-    pause: float = 1.0,
+    pause: float = 0.2,
+    progress: bool = True,
 ) -> list[int]:
     """Cache each activity's per-sample detail stream as one Parquet file.
 
     Writes ``<dest>/<activity_id>.parquet`` (``details_to_df`` output plus an
     ``activity_id`` column, all channels kept).  Ids already on disk are skipped
-    unless ``overwrite``; ``pause`` seconds are slept between API calls to stay
-    under Garmin's rate limit.  Returns the ids actually fetched.
+    unless ``overwrite``.  Returns the ids actually fetched.
+
+    ``pause`` seconds are slept after each *API call* (not after cache hits) as a
+    courtesy throttle — Garmin rate-limits bulk access and a few-thousand-activity
+    backfill will otherwise trip ``429``.  Raise it if that happens; drop it to
+    ``0`` for small incremental syncs.
     """
     dest = Path(dest)
     dest.mkdir(parents=True, exist_ok=True)
 
+    ids = [int(i) for i in activity_ids]
     fetched: list[int] = []
-    for activity_id in activity_ids:
+    skipped = 0
+
+    bar = tqdm(ids, disable=not progress, unit="act")
+    for activity_id in bar:
         path = dest / f"{activity_id}.parquet"
         if path.exists() and not overwrite:
             continue
@@ -227,13 +243,21 @@ def sync_details(
         ok, det, err = safe_api_call(api.get_activity_details, activity_id)
         if not ok or not det:
             log.warning("skipping %s: %s", activity_id, err or "no data")
+            skipped += 1
             continue
 
-        df = details_to_df(det)
+        try:
+            df = details_to_df(det)
+        except ValueError as e:
+            # manual entries / some activity types have no recorded stream
+            log.warning("skipping %s: %s", activity_id, e)
+            skipped += 1
+            continue
+
         df.insert(0, "activity_id", activity_id)
         df.to_parquet(path, compression="zstd")
         fetched.append(activity_id)
-        log.info("cached %s (%d samples)", activity_id, len(df))
+        bar.set_postfix(fetched=len(fetched), skipped=skipped)
 
         if pause:
             time.sleep(pause)
